@@ -13,18 +13,29 @@
 
 [BITS 16]
 [ORG 7C00H]
+call disableSeg
 call loadKernel
-jmp 21h:0
+jmp 0:0x600
+
+
+disableSeg:
+    mov ax, 0      ; Define o segmento base como 0
+    mov ds, ax     ; Data Segment
+    mov es, ax     ; Extra Segment
+    mov ss, ax     ; Stack Segment
+    mov fs, ax     ; Additional Segment
+    mov gs, ax     ; Additional Segment
+    ret
 
 loadKernel:
     mov ah, 2h ; função para ler setores
-    mov al, 1 ; irá ler só 1 setor
+    mov al, 18 ; irá ler só 1 setor
     mov ch, 0 ; usa o primeiro cilindro
     mov cl, 2 ; o setor que será lido é o setor 2
     mov dh, 0 ; primeiro cabeçote
-    mov bx, 21h ; endereço de load dos dados
+    mov bx, 0 ; endereço de load dos dados
     mov es, bx ; configura o es para o endereço dos dados
-    mov bx, 0 ; configura para 0
+    mov bx, 0x600 ; configura para 0
     int 13h ; ler o disco
     jc error_occurred ; verifica um erro
     ret
@@ -36,11 +47,6 @@ teste3:
     mov ah, 0eh
     mov al, [si]
     int 10h
-    start2:
-        mov cx, 0xFFFF
-    pause_loop2:
-        dec cx
-        jnz pause_loop2
     ret
 
 END:

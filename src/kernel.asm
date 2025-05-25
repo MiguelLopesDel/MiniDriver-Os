@@ -1,69 +1,63 @@
+extern kernel_main
 [BITS 16]
-[ORG 0]
-;mov ax, 0x4F02
-;mov bx, 0x0115
-;int 0x10
-jmp osMain
-    
-tesle db "Laa",0
-backWidth db 0
-backHeight db 0
-pagination db 0
-welcome db "Seja Bem Vindo ao MiniDriver Os",0
 
-osMain:
-    call configSegment
-    call configStack
-    call setTextVideoMode
-    jmp showString
+CODE_SEG equ gdt_code - gdt_start
+DATA_SEG equ gdt_data - gdt_start
 
-showString:
-    mov dh, 3
-    mov dl, 2
-    call moveCursor
-    mov si, welcome
-    call printString
-    jmp END
+start_protected_mode:
+    cli    
+    mov ax, 0 
+    mov ds, ax         
+    lgdt [gdt_descriptor]
+    mov eax, cr0     
+    or al, 1
+    mov cr0, eax
+    jmp CODE_SEG:setup_segments
 
-configSegment:
-    mov ax, es
-    mov ds, ax
-    ret
-configStack:
-    mov ax, 7D00h
-    mov ss, ax
-    mov sp, 03FEh
-    ret
-setTextVideoMode:
-    mov ah, 00h
-    mov al, 03h
-    int 10h
-    mov BYTE[backHeight], 20
-    mov BYTE[backWidth], 80
-    ret
+gdt_start:
+    dd 0x0           ; Null descriptor
+    dd 0x0           
 
-printString:
-    mov ah, 09h
-    mov bh, [pagination]
-    mov bl, 40
-    mov cx, 1
-    mov al, [si]
-    print:
-        int 10h
-        inc si
-        call moveCursor
-        mov ah, 09h
-        mov al, [si]
-        cmp al, 0
-        jne print
-    ret
+; Descriptor de código
+gdt_code:
+    dw 0xFFFF        ; Limit
+    dw 0x0000        ; Base (parte baixa)
+    db 0x00          ; Base (parte média)
+    db 10011010b     ; Access
+    db 11001111b     ; Granularity
+    db 0x00          ; Base (parte alta)
 
-moveCursor:
-    mov ah, 02h
-    mov bh, [pagination]
-    inc dl
-    int 10h
-    ret
+; Descriptor de dados
+gdt_data:
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00  
+    db 10010010b     
+    db 11001111b     
+    db 0x00        
 
-END:
-    jmp $
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1
+    dd gdt_start
+
+[bits 32]
+global setup_segments
+setup_segments:
+    mov ax, DATA_SEG 
+    mov ds, ax       
+    mov es, ax       
+    mov fs, ax       
+    mov ss, ax       
+    mov gs, ax       
+    mov ebp, 0x9C00  
+    mov esp, ebp     
+
+    ; Ativa A20
+    in al, 0x92      
+    or al, 2         
+    out 0x92, al
+    call kernel_main
+hang:
+    jmp hang
